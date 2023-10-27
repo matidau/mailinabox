@@ -116,6 +116,9 @@ InstallNextcloud() {
 	# that error.
 	chown -f -R www-data:www-data $STORAGE_ROOT/owncloud /usr/local/lib/owncloud || /bin/true
 
+	# Set version check for PHP 8.1 to PHP 9
+	sed -i 's;if (PHP_VERSION_ID >= 80100) {;if (PHP_VERSION_ID >= 90000) {;g' /usr/local/lib/owncloud/lib/versioncheck.php
+
 	# If this isn't a new installation, immediately run the upgrade script.
 	# Then check for success (0=ok and 3=no upgrade needed, both are success).
 	if [ -e $STORAGE_ROOT/owncloud/owncloud.db ]; then
