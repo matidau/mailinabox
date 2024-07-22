@@ -90,6 +90,20 @@ InstallNextcloud() {
 	echo "Upgrading to Nextcloud version $version"
 	echo
 
+	# set PHP version, set to earlier version if required for upgrade
+	nc_php_ver="$PHP_VER"
+	if [ "$version" =~ ^2[0123] ]; then
+		nc_php_ver=8.0
+	fi
+
+	# install earlier PHP version 
+	if [ "$nc_php_ver" != "$PHP_VER" ]; then
+		apt_install curl php"${nc_php_ver}" php"${nc_php_ver}"-fpm \
+			php"${nc_php_ver}"-cli php"${nc_php_ver}"-sqlite3 php"${nc_php_ver}"-gd php"${nc_php_ver}"-imap php"${nc_php_ver}"-curl \
+			php"${nc_php_ver}"-dev php"${nc_php_ver}"-gd php"${nc_php_ver}"-xml php"${nc_php_ver}"-mbstring php"${nc_php_ver}"-zip php"${nc_php_ver}"-apcu \
+			php"${nc_php_ver}"-intl php"${nc_php_ver}"-imagick php"${nc_php_ver}"-gmp php"${nc_php_ver}"-bcmath
+	fi
+
 	# Download and verify
 	wget_verify "https://download.nextcloud.com/server/releases/nextcloud-$version.zip" "$hash" /tmp/nextcloud.zip
 
@@ -138,23 +152,23 @@ InstallNextcloud() {
 	if [ -e "$STORAGE_ROOT/owncloud/owncloud.db" ]; then
 		# ownCloud 8.1.1 broke upgrades. It may fail on the first attempt, but
 		# that can be OK.
-		sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/occ upgrade
+		sudo -u www-data php"$nc_php_ver" /usr/local/lib/owncloud/occ upgrade
 		E=$?
 		if [ $E -ne 0 ] && [ $E -ne 3 ]; then
 			echo "Trying ownCloud upgrade again to work around ownCloud upgrade bug..."
-			sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/occ upgrade
+			sudo -u www-data php"$nc_php_ver" /usr/local/lib/owncloud/occ upgrade
 			E=$?
 			if [ $E -ne 0 ] && [ $E -ne 3 ]; then exit 1; fi
-			sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/occ maintenance:mode --off
+			sudo -u www-data php"$nc_php_ver" /usr/local/lib/owncloud/occ maintenance:mode --off
 			echo "...which seemed to work."
 		fi
 
 		# Add missing indices. NextCloud didn't include this in the normal upgrade because it might take some time.
-		sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/occ db:add-missing-indices
-		sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/occ db:add-missing-primary-keys
+		sudo -u www-data php"$nc_php_ver" /usr/local/lib/owncloud/occ db:add-missing-indices
+		sudo -u www-data php"$nc_php_ver" /usr/local/lib/owncloud/occ db:add-missing-primary-keys
 
 		# Run conversion to BigInt identifiers, this process may take some time on large tables.
-		sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/occ db:convert-filecache-bigint --no-interaction
+		sudo -u www-data php"$nc_php_ver" /usr/local/lib/owncloud/occ db:convert-filecache-bigint --no-interaction
 	fi
 }
 
@@ -166,7 +180,7 @@ InstallNextcloud() {
 
 # If config.php exists, get version number, otherwise CURRENT_NEXTCLOUD_VER is empty.
 if [ -f "$STORAGE_ROOT/owncloud/config.php" ]; then
-	CURRENT_NEXTCLOUD_VER=$(php"$PHP_VER" -r "include(\"$STORAGE_ROOT/owncloud/config.php\"); echo(\$CONFIG['version']);")
+	CURRENT_NEXTCLOUD_VER=$(php"$nc_php_ver" -r "include(\"$STORAGE_ROOT/owncloud/config.php\"); echo(\$CONFIG['version']);")
 else
 	CURRENT_NEXTCLOUD_VER=""
 fi
@@ -176,7 +190,7 @@ fi
 if [ ! -d /usr/local/lib/owncloud/ ] || [[ ! ${CURRENT_NEXTCLOUD_VER} =~ ^$nextcloud_ver ]]; then
 
 	# Stop php-fpm if running. If they are not running (which happens on a previously failed install), dont bail.
-	service php"$PHP_VER"-fpm stop &> /dev/null || /bin/true
+	service php"$nc_php_ver"-fpm stop &> /dev/null || /bin/true
 
 	# Backup the existing ownCloud/Nextcloud.
 	# Create a backup directory to store the current installation and database to
