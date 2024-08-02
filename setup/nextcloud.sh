@@ -92,7 +92,7 @@ InstallNextcloud() {
 
 	# set PHP version, set to earlier version if required for upgrade
 	nc_php_ver="$PHP_VER"
-	if [ "$version" =~ ^2[0123] ]; then
+	if [[ ${version} =~ ^2[0123] ]]; then
 		nc_php_ver=8.0
 	fi
 
@@ -102,6 +102,10 @@ InstallNextcloud() {
 			php"${nc_php_ver}"-cli php"${nc_php_ver}"-sqlite3 php"${nc_php_ver}"-gd php"${nc_php_ver}"-imap php"${nc_php_ver}"-curl \
 			php"${nc_php_ver}"-dev php"${nc_php_ver}"-gd php"${nc_php_ver}"-xml php"${nc_php_ver}"-mbstring php"${nc_php_ver}"-zip php"${nc_php_ver}"-apcu \
 			php"${nc_php_ver}"-intl php"${nc_php_ver}"-imagick php"${nc_php_ver}"-gmp php"${nc_php_ver}"-bcmath
+		
+		tools/editconf.py /etc/php/"$nc_php_ver"/mods-available/apcu.ini -c ';' \
+			apc.enabled=1 \
+			apc.enable_cli=1
 	fi
 
 	# Download and verify
@@ -180,7 +184,7 @@ InstallNextcloud() {
 
 # If config.php exists, get version number, otherwise CURRENT_NEXTCLOUD_VER is empty.
 if [ -f "$STORAGE_ROOT/owncloud/config.php" ]; then
-	CURRENT_NEXTCLOUD_VER=$(php"$nc_php_ver" -r "include(\"$STORAGE_ROOT/owncloud/config.php\"); echo(\$CONFIG['version']);")
+	CURRENT_NEXTCLOUD_VER=$(php"$PHP_VER" -r "include(\"$STORAGE_ROOT/owncloud/config.php\"); echo(\$CONFIG['version']);")
 else
 	CURRENT_NEXTCLOUD_VER=""
 fi
@@ -190,7 +194,7 @@ fi
 if [ ! -d /usr/local/lib/owncloud/ ] || [[ ! ${CURRENT_NEXTCLOUD_VER} =~ ^$nextcloud_ver ]]; then
 
 	# Stop php-fpm if running. If they are not running (which happens on a previously failed install), dont bail.
-	service php"$nc_php_ver"-fpm stop &> /dev/null || /bin/true
+	service php"$PHP_VER"-fpm stop &> /dev/null || /bin/true
 
 	# Backup the existing ownCloud/Nextcloud.
 	# Create a backup directory to store the current installation and database to
